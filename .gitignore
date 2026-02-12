@@ -1,1 +1,4 @@
 assets/
+*.pyc
+.venv/
+vnv/
