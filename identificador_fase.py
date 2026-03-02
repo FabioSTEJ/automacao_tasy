@@ -31,3 +31,4 @@ def identificar_fase_atual():
             continue
 
     return "DESCONHECIDO"
+
