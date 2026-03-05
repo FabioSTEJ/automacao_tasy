@@ -3,3 +3,4 @@ assets/
 .venv/
 vnv/
 logs/
+config_totem.py

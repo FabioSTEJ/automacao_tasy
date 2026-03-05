@@ -1,7 +1,8 @@
 import pyautogui
 import time
 import os
-
+import socket  # Importado para ler o nome da máquina (Hostname)
+from config_totem import MAPA_SEQUENCIAS_TOTEM  # Importa o mapa do arquivo separado
 
 def clicar_no_botao(nome_arquivo_botao, confiança=0.8):
     diretorio_atual = os.path.dirname(os.path.abspath(__file__))
@@ -35,7 +36,6 @@ def tratar_fase_servidor():
     else:
         print("Erro ao selecionar o servidor de produção.")
 
-
 def tratar_fase_login():
     print("Iniciando processo de Login Blindado...")
     
@@ -48,19 +48,16 @@ def tratar_fase_login():
         pyautogui.press("tab") 
     
     time.sleep(0.5)
-
     
     pyautogui.hotkey('ctrl', 'a')
     pyautogui.press('backspace')
     time.sleep(0.3)
 
-    
     print("Digitando credenciais...")
     pyautogui.write("automacao", interval=0.15) 
     pyautogui.press("tab")
     
     time.sleep(0.5) 
-    
     
     pyautogui.hotkey('ctrl', 'a')
     pyautogui.press('backspace')
@@ -70,6 +67,7 @@ def tratar_fase_login():
     
     print("Sucesso: Credenciais enviadas. Aguardando transição de tela...")
     time.sleep(4)
+
 def tratar_fase_gerenciamento_senha():
     print("Iniciando fluxo no Gerenciador de Senha...")
     
@@ -100,9 +98,8 @@ def tratar_fase_gerenciamento_senha():
 
 def tratar_fase_auto_atendimento():
     print(">>> MODO VIGILÂNCIA ATIVO: Tasy operando em Autoatendimento.")
-    pass
+    pass 
 
-        
 def tratar_fase_login_prosseguir():
     print("Detectada sessão ativa. Clicando em OK para prosseguir...")
     for _ in range(3):
@@ -112,7 +109,46 @@ def tratar_fase_login_prosseguir():
         time.sleep(1)
     print("Erro: Botão OK não foi encontrado ou clicado.")
     return False
+def tratar_fase_cadastro_computador():
+    print("[LOG]: Fase de cadastro do computador.")
+    
+    # 1. Clica na caixa (campo) que vai receber a sequência para garantir o foco
+    botao_cadastro = clicar_no_botao("botao_cadastro_computador.png", confiança=0.8)
+    
+    if not botao_cadastro:
+        print("Erro: Botão de cadastro do computador não encontrado.")
+    else:
+        print("Sucesso: Botão de cadastro do computador clicado. Identificando máquina...")
+        time.sleep(0.8) # Tempo para o campo focar corretamente
 
+        # 2. Identifica o nome desta máquina (Hostname) e busca a sequência
+        nome_pc = socket.gethostname().upper()
+        sequencia = MAPA_SEQUENCIAS_TOTEM.get(nome_pc, MAPA_SEQUENCIAS_TOTEM.get("DEFAULT", "000"))
+        
+        print(f"[AÇÃO]: Computador {nome_pc} identificado. Digitando sequência {sequencia}...")
+
+        # 3. Limpeza de segurança e digitação da sequência
+        pyautogui.hotkey('ctrl', 'a')
+        pyautogui.press('backspace')
+        time.sleep(0.3)
+        
+        pyautogui.write(sequencia, interval=0.15)
+        
+        # 4. Sequência de Cliques no OK de Cadastro (2 tempos)
+        print("[AÇÃO]: Iniciando confirmação em 2 tempos...")
+        
+        # Primeiro Clique (Para confirmar a digitação/fechar campo)
+        if clicar_no_botao("botao_ok_cadastro.png", confiança=0.8):
+            print("Primeiro OK clicado. Aguardando 1 segundo para o popup...")
+            time.sleep(1.0)
+            
+            # Segundo Clique (Para fechar o popup de 'Máquina informada com sucesso')
+            if clicar_no_botao("botao_ok_cadastro.png", confiança=0.8):
+                print(f"[OK]: Cadastro da máquina {nome_pc} e popup confirmados.")
+            else:
+                print("[AVISO]: Segundo clique no OK não foi possível (Popup não apareceu ou já fechou).")
+        else:
+            print("[ERRO]: Não foi possível realizar o primeiro clique no botao_ok_cadastro.png.")
 def tratar_fase_funcao():
     botao_funcao = clicar_no_botao("botao_funcao.png", confiança=0.8)
 

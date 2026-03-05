@@ -19,7 +19,7 @@ def identificar_fase_atual():
         caminho_imagem = os.path.join(pasta_classificador, arquivo)
 
         try:
-            posicao = pyautogui.locateOnScreen(caminho_imagem, confidence=0.8)
+            posicao = pyautogui.locateOnScreen(caminho_imagem, confidence=0.9)
 
             if posicao:
                 nome_fase = arquivo.replace("fase_", "").replace(".png", "").upper()

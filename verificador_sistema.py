@@ -47,6 +47,7 @@ def focar_janela():
                     if "visual studio code" not in j.title.lower()]
     if janelas_edge:
         try:
+            
             edge = janelas_edge[0]
             if edge.isMinimized: edge.restore()
             edge.activate()

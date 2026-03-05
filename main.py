@@ -27,6 +27,10 @@ def rodar_robo():
                 acoes_tasy.tratar_fase_gerenciamento_senha()
                 print("[INFO] Aguardando transição para o Autoatendimento...")
                 time.sleep(5)
+            elif fase == "CADASTRO_COMPUTADOR":
+                acoes_tasy.tratar_fase_cadastro_computador()
+                print("[INFO] Verificando nome do computador.")
+                time.sleep(5)
             elif fase == "AUTO_ATENDIMENTO":
                 acoes_tasy.tratar_fase_auto_atendimento()
             elif fase == "LOGIN_PROSSEGUIR":
