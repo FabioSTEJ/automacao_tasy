@@ -173,9 +173,9 @@ def salvar_print_erro():
     timestamp = time.strftime("%Y-%m-%d_%H-%M-%S")
     nome_arquivo = f"erro_desconhecido_{timestamp}.png"
     caminho_final = os.path.join(diretorio_logs, nome_arquivo)
-
     try:
         pyautogui.screenshot(caminho_final)
         print(f"[CÂMERA] Evidência salva em: {caminho_final}")
     except Exception as e:
         print(f"[ERRO] Falha ao capturar print: {e}")
+        #teste
