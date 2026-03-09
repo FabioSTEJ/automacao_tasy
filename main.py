@@ -3,65 +3,60 @@ import acoes_tasy
 import verificador_sistema
 import time
 
-
 def rodar_robo():
-    print("Iniciando monitoramento do Tasy...")
+    print("Monitoramento Blindado 24/7 Iniciado...")
     ultima_fase = None
-    contador_desconhecido = 0
+    
+    # Dicionário que mapeia o nome da fase para a função que deve ser executada
+    # Isso torna o código limpo e fácil de expandir
+    acoes = {
+        "SERVIDOR": acoes_tasy.tratar_fase_servidor,
+        "LOGIN": acoes_tasy.tratar_fase_login,
+        "GERENCIADOR_SENHA": acoes_tasy.tratar_fase_gerenciamento_senha,
+        "CADASTRO_COMPUTADOR": acoes_tasy.tratar_fase_cadastro_computador,
+        "AUTO_ATENDIMENTO": acoes_tasy.tratar_fase_auto_atendimento,
+        "LOGIN_PROSSEGUIR": acoes_tasy.tratar_fase_login_prosseguir,
+        "FUNCAO": acoes_tasy.tratar_fase_funcao,
+        "ERRO_SISTEMA": acoes_tasy.tratar_instabilidade_tasy
+    }
 
     while True:
-        
-        fase = identificador_fase.identificar_fase_atual()
+        try:
+            fase = identificador_fase.identificar_fase_atual()
 
-        
-        if fase != "DESCONHECIDO" and fase != ultima_fase:
-            print(f"--- Entrando na fase: {fase} ---")
-            ultima_fase = fase
-            contador_desconhecido = 0
+            # Se a fase é conhecida e é diferente da última (ou se a última falhou)
+            if fase != "DESCONHECIDO" and fase != ultima_fase:
+                print(f"--- [DETECTADO]: {fase} ---")
+                
+                # Verifica se temos uma ação programada para essa fase
+                if fase in acoes:
+                    # EXECUÇÃO COM VALIDAÇÃO:
+                    # Chamamos a função e ela nos diz se funcionou (True/False)
+                    executou_com_sucesso = acoes[fase]()
 
-            if fase == "SERVIDOR":
-                acoes_tasy.tratar_fase_servidor()
-            elif fase == "LOGIN":
-                acoes_tasy.tratar_fase_login()
-            elif fase == "GERENCIADOR_SENHA":
-                acoes_tasy.tratar_fase_gerenciamento_senha()
-                print("[INFO] Aguardando transição para o Autoatendimento...")
-                time.sleep(5)
-            elif fase == "CADASTRO_COMPUTADOR":
-                acoes_tasy.tratar_fase_cadastro_computador()
-                print("[INFO] Verificando nome do computador.")
-                time.sleep(5)
-            elif fase == "AUTO_ATENDIMENTO":
-                acoes_tasy.tratar_fase_auto_atendimento()
-            elif fase == "LOGIN_PROSSEGUIR":
-                acoes_tasy.tratar_fase_login_prosseguir()
-                ultima_fase = fase
-                print("Aguardando 3 segundos para o Tasy processar o login...")
-                time.sleep(3)
-            elif fase == "FUNCAO":
-                acoes_tasy.tratar_fase_funcao()
-            elif fase == "ERRO_SISTEMA":
-                acoes_tasy.tratar_instabilidade_tasy()
+                    if executou_com_sucesso:
+                        print(f"[OK] Fase {fase} concluída com sucesso.")
+                        ultima_fase = fase # Só trava a fase se deu certo
+                    else:
+                        print(f"[AVISO] Falha ao executar {fase}. Tentando novamente...")
+                        ultima_fase = None # Força a tentativa no próximo ciclo
+                else:
+                    print(f"[ERRO] Fase {fase} identificada, mas sem ação definida no dicionário.")
 
-        
-        elif fase == "DESCONHECIDO":
-            contador_desconhecido += 1
-            print(f"[INFO] Fase desconhecida. Tentativa de reconhecimento {contador_desconhecido}/10...")
-            
-            
-            if contador_desconhecido == 10:
-                print("[ALERTA] Tempo limite atingido sem reconhecimento. Capturando tela...")
-                acoes_tasy.salvar_print_erro()
+            elif fase == "DESCONHECIDO":
+                # Lógica de recuperação (abrir Tasy, focar janela, etc)
+                if not verificador_sistema.tasy_esta_rodando():
+                    verificador_sistema.abrir_tasy()
+                    ultima_fase = None
+                else:
+                    verificador_sistema.focar_janela()
 
-            if not verificador_sistema.tasy_esta_rodando():
-                print("[INFO] Aplicativo TasyNative não encontrado. Solicitando abertura...")
-                verificador_sistema.abrir_tasy()
-                ultima_fase = None 
-            else:
-                verificador_sistema.focar_janela()
+        except Exception as e:
+            print(f"[ERRO CRÍTICO]: {e}")
+            ultima_fase = None # Reset total em caso de erro
+            time.sleep(5)
 
-        time.sleep(2.5)
-
+        time.sleep(2.5) # Ritmo de vigilância
 
 if __name__ == "__main__":
     rodar_robo()

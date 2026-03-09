@@ -110,45 +110,52 @@ def tratar_fase_login_prosseguir():
     print("Erro: Botão OK não foi encontrado ou clicado.")
     return False
 def tratar_fase_cadastro_computador():
-    print("[LOG]: Fase de cadastro do computador.")
+    print("[LOG]: Iniciando validação de Cadastro do Computador...")
     
-    # 1. Clica na caixa (campo) que vai receber a sequência para garantir o foco
-    botao_cadastro = clicar_no_botao("botao_cadastro_computador.png", confiança=0.8)
-    
-    if not botao_cadastro:
-        print("Erro: Botão de cadastro do computador não encontrado.")
+    # --- PASSO 1: O BOTÃO INICIAL ESTÁ LÁ? ---
+    # Tentamos ver se o botão de "Cadastrar" aparece.
+    if clicar_no_botao("botao_cadastro_computador.png", confiança=0.8):
+        print("[SUCESSO]: Passo 1 detectado e clicado. Abrindo formulário...")
+        time.sleep(1.5) # Espera o formulário abrir
     else:
-        print("Sucesso: Botão de cadastro do computador clicado. Identificando máquina...")
-        time.sleep(0.8) # Tempo para o campo focar corretamente
+        print("[INFO]: Botão inicial não encontrado. Verificando se já estamos no Passo 2...")
 
-        # 2. Identifica o nome desta máquina (Hostname) e busca a sequência
+    # --- PASSO 2: DIGITAÇÃO DA SEQUÊNCIA ---
+    # Aqui não usamos 'if not', apenas tentamos agir no campo que já deve estar aberto
+    try:
         nome_pc = socket.gethostname().upper()
         sequencia = MAPA_SEQUENCIAS_TOTEM.get(nome_pc, MAPA_SEQUENCIAS_TOTEM.get("DEFAULT", "000"))
         
-        print(f"[AÇÃO]: Computador {nome_pc} identificado. Digitando sequência {sequencia}...")
-
-        # 3. Limpeza de segurança e digitação da sequência
+        # Tentativa de focar e digitar
+        print(f"[AÇÃO]: Tentando digitar sequência {sequencia} para {nome_pc}...")
         pyautogui.hotkey('ctrl', 'a')
         pyautogui.press('backspace')
         time.sleep(0.3)
-        
         pyautogui.write(sequencia, interval=0.15)
-        
-        # 4. Sequência de Cliques no OK de Cadastro (2 tempos)
-        print("[AÇÃO]: Iniciando confirmação em 2 tempos...")
-        
-        # Primeiro Clique (Para confirmar a digitação/fechar campo)
-        if clicar_no_botao("botao_ok_cadastro.png", confiança=0.8):
-            print("Primeiro OK clicado. Aguardando 1 segundo para o popup...")
-            time.sleep(1.0)
-            
-            # Segundo Clique (Para fechar o popup de 'Máquina informada com sucesso')
-            if clicar_no_botao("botao_ok_cadastro.png", confiança=0.8):
-                print(f"[OK]: Cadastro da máquina {nome_pc} e popup confirmados.")
-            else:
-                print("[AVISO]: Segundo clique no OK não foi possível (Popup não apareceu ou já fechou).")
-        else:
-            print("[ERRO]: Não foi possível realizar o primeiro clique no botao_ok_cadastro.png.")
+        pyautogui.press('enter')
+        time.sleep(1.0)
+    except Exception as e:
+        print(f"[ERRO]: Falha ao tentar digitar: {e}")
+        return False
+
+    # --- PASSO 3: CONFIRMAÇÃO (OS CLIQUES DE OK) ---
+    # Esta é a parte que realmente valida se a fase acabou
+    print("[AÇÃO]: Verificando botões de confirmação (OK)...")
+    
+    # Tenta o primeiro OK
+    primeiro_ok = clicar_no_botao("botao_ok_cadastro.png", confiança=0.8)
+    
+    if primeiro_ok:
+        print("[OK]: Primeiro OK clicado. Aguardando possível popup secundário...")
+        time.sleep(1.5)
+        # Tenta o segundo OK (se houver popup de confirmação)
+        clicar_no_botao("botao_ok_cadastro.png", confiança=0.8)
+        print("[SUCESSO]: Processo de cadastro finalizado.")
+        return True
+    else:
+        # Se não achou nem o botão inicial, nem o OK, então algo deu errado
+        print("[AVISO]: Nenhum botão de interação (Cadastro ou OK) foi encontrado.")
+        return False
 def tratar_fase_funcao():
     botao_funcao = clicar_no_botao("botao_funcao.png", confiança=0.8)
 
