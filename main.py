@@ -3,12 +3,27 @@ import acoes_tasy
 import verificador_sistema
 import time
 
-def rodar_robo():
-    print("Monitoramento Blindado 24/7 Iniciado...")
-    ultima_fase = None
+def aguardar_mudanca_de_fase(fase_anterior, timeout=15):
+    """
+    Aguarda ativamente até que a fase na tela seja diferente da fase anterior.
+    Retorna True se a fase mudou, False se o tempo limite foi atingido.
+    """
+    print(f"[AGUARDANDO] Ação para '{fase_anterior}' concluída. Esperando a tela mudar...")
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        fase_atual = identificador_fase.identificar_fase_atual()
+        if fase_atual != fase_anterior:
+            print(f"[AGUARDANDO] Mudança de tela detectada. Prosseguindo...")
+            return True
+        time.sleep(0.5) # Verifica a cada meio segundo
     
-    # Dicionário que mapeia o nome da fase para a função que deve ser executada
-    # Isso torna o código limpo e fácil de expandir
+    print(f"[AVISO] Timeout: A tela permaneceu em '{fase_anterior}' por mais de {timeout} segundos.")
+    return False
+
+def rodar_robo():
+    print("Monitoramento Blindado 24/7 Iniciado (Modo Totem)...")
+    ultima_fase = None
+
     acoes = {
         "SERVIDOR": acoes_tasy.tratar_fase_servidor,
         "LOGIN": acoes_tasy.tratar_fase_login,
@@ -22,41 +37,56 @@ def rodar_robo():
 
     while True:
         try:
+
+            if not verificador_sistema.tasy_esta_rodando():
+                print("[SISTEMA] Tasy não detectado. Iniciando modo Kiosk...")
+                verificador_sistema.abrir_tasy_kiosk()
+                ultima_fase = None
+                continue 
+
             fase = identificador_fase.identificar_fase_atual()
 
-            # Se a fase é conhecida e é diferente da última (ou se a última falhou)
             if fase != "DESCONHECIDO" and fase != ultima_fase:
                 print(f"--- [DETECTADO]: {fase} ---")
                 
-                # Verifica se temos uma ação programada para essa fase
                 if fase in acoes:
-                    # EXECUÇÃO COM VALIDAÇÃO:
-                    # Chamamos a função e ela nos diz se funcionou (True/False)
-                    executou_com_sucesso = acoes[fase]()
+             
+                    sucesso = acoes[fase]()
+                    
+                    if sucesso:
+                        # Ação foi bem-sucedida. Travamos a fase para não agir nela de novo imediatamente.
+                        ultima_fase = fase
 
-                    if executou_com_sucesso:
-                        print(f"[OK] Fase {fase} concluída com sucesso.")
-                        ultima_fase = fase # Só trava a fase se deu certo
+                        # A fase 'AUTO_ATENDIMENTO' é um estado final de monitoramento.
+                        # Não esperamos uma mudança, apenas continuamos o loop de verificação.
+                        if fase != "AUTO_ATENDIMENTO":
+                            # Para outras fases, esperamos ativamente a transição de tela.
+                            mudou_de_fase = aguardar_mudanca_de_fase(fase_anterior=fase)
+                            if not mudou_de_fase:
+                                # Se a tela não mudou (timeout), algo pode ter travado.
+                                # Resetamos ultima_fase para forçar uma nova tentativa da ação no próximo ciclo.
+                                ultima_fase = None
                     else:
-                        print(f"[AVISO] Falha ao executar {fase}. Tentando novamente...")
-                        ultima_fase = None # Força a tentativa no próximo ciclo
+                        print(f"[AVISO] Falha na execução de {fase}. Tentando novamente...")
+                        ultima_fase = None 
                 else:
-                    print(f"[ERRO] Fase {fase} identificada, mas sem ação definida no dicionário.")
+                    print(f"[ERRO] Fase {fase} sem ação definida.")
+                    ultima_fase = fase # Trava para não logar o mesmo erro repetidamente
 
             elif fase == "DESCONHECIDO":
-                # Lógica de recuperação (abrir Tasy, focar janela, etc)
-                if not verificador_sistema.tasy_esta_rodando():
-                    verificador_sistema.abrir_tasy()
+                verificador_sistema.focar_janela_kiosk()
+                if ultima_fase is not None:
+                    print("[INFO] Tela desconhecida detectada. Resetando estado para reavaliação.")
                     ultima_fase = None
-                else:
-                    verificador_sistema.focar_janela()
 
         except Exception as e:
-            print(f"[ERRO CRÍTICO]: {e}")
-            ultima_fase = None # Reset total em caso de erro
+            print(f"[ERRO CRÍTICO NO MAIN]: {e}")
             time.sleep(5)
+            ultima_fase = None
 
-        time.sleep(2.5) # Ritmo de vigilância
+        # Ritmo de vigilância. Um sleep curto para não sobrecarregar a CPU,
+        # especialmente quando a fase é estável (ex: AUTO_ATENDIMENTO) ou desconhecida.
+        time.sleep(1)
 
 if __name__ == "__main__":
     rodar_robo()

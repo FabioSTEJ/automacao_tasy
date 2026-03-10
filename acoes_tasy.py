@@ -33,8 +33,10 @@ def tratar_fase_servidor():
         time.sleep(0.5)
         pyautogui.press("enter")
         print("Servidor selecionado.")
+        return True
     else:
         print("Erro ao selecionar o servidor de produção.")
+        return False
 
 def tratar_fase_login():
     print("Iniciando processo de Login Blindado...")
@@ -67,6 +69,7 @@ def tratar_fase_login():
     
     print("Sucesso: Credenciais enviadas. Aguardando transição de tela...")
     time.sleep(4)
+    return True
 
 def tratar_fase_gerenciamento_senha():
     print("Iniciando fluxo no Gerenciador de Senha...")
@@ -81,7 +84,7 @@ def tratar_fase_gerenciamento_senha():
 
     if not aba_clicada:
         print("Erro: Não foi possível abrir a aba Cadastro.")
-        return
+        return False
 
     print("Aba clicada. Aguardando botão Autoatendimento aparecer...")
     
@@ -91,14 +94,15 @@ def tratar_fase_gerenciamento_senha():
     while time.time() - start_time < timeout:
         if clicar_no_botao("botao_autoatendimento.png", confiança=0.85):
             print("Sucesso: Botão Autoatendimento clicado!")
-            return
+            return True
         time.sleep(0.5)
         
     print("Erro: O botão Autoatendimento não apareceu a tempo.")
+    return False
 
 def tratar_fase_auto_atendimento():
     print(">>> MODO VIGILÂNCIA ATIVO: Tasy operando em Autoatendimento.")
-    pass 
+    return True
 
 def tratar_fase_login_prosseguir():
     print("Detectada sessão ativa. Clicando em OK para prosseguir...")
@@ -138,8 +142,6 @@ def tratar_fase_cadastro_computador():
         print(f"[ERRO]: Falha ao tentar digitar: {e}")
         return False
 
-    # --- PASSO 3: CONFIRMAÇÃO (OS CLIQUES DE OK) ---
-    # Esta é a parte que realmente valida se a fase acabou
     print("[AÇÃO]: Verificando botões de confirmação (OK)...")
     
     # Tenta o primeiro OK
@@ -161,13 +163,16 @@ def tratar_fase_funcao():
 
     if botao_funcao:
         print("Sucesso: Botão Função clicado.")
+        return True
     else:
         print("Erro: Botão Função não foi clicado.")
+        return False
 
 def tratar_instabilidade_tasy():
     print("⚠️ Alerta: Instabilidade detectada! Tentando recuperar...")
     pyautogui.hotkey('ctrl', 'shift', 'r')
     time.sleep(5)
+    return True
 
 def salvar_print_erro():
     """Tira um print da tela e salva na pasta logs_erros para análise posterior."""
