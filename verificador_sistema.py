@@ -57,3 +57,7 @@ def focar_janela_kiosk():
                 break
     except:
         pass
+
+def identificar_fase_atual():
+    """Wrapper para retornar a fase atual identificada, desacoplando o main do identificador direto."""
+    return identificador_fase.identificar_fase_atual()

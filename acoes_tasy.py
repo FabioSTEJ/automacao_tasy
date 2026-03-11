@@ -2,13 +2,18 @@ import pyautogui
 import time
 import os
 import socket  # Importado para ler o nome da máquina (Hostname)
+import identificador_fase
 from config_totem import MAPA_SEQUENCIAS_TOTEM  # Importa o mapa do arquivo separado
 
-def clicar_no_botao(nome_arquivo_botao, confiança=0.8):
+def clicar_no_botao(nome_arquivo_botao, confiança=0.8, subpasta="botoes"):
     diretorio_atual = os.path.dirname(os.path.abspath(__file__))
     caminho_botao = os.path.join(
-        diretorio_atual, "assets", "botoes", nome_arquivo_botao
+        diretorio_atual, "assets", subpasta, nome_arquivo_botao
     )
+
+    if not os.path.exists(caminho_botao):
+        # Silencia o erro se o arquivo de imagem não existir
+        return False
 
     try:
         ponto_clique = pyautogui.locateCenterOnScreen(
@@ -73,7 +78,21 @@ def tratar_fase_login():
 
 def tratar_fase_gerenciamento_senha():
     print("Iniciando fluxo no Gerenciador de Senha...")
-    
+
+    # Pausa estratégica: O Tasy pode exibir a tela de cadastro de computador
+    # sobre esta tela. Damos um tempo para que isso aconteça.
+    print("[FLUXO] Aguardando estabilização da tela (verificando se o cadastro de computador aparece)...")
+    time.sleep(3)
+
+    # Revalida a fase. Se a tela de cadastro apareceu, o loop principal vai detectá-la e tratá-la.
+    fase_pos_pausa = identificador_fase.identificar_fase_atual()
+    if fase_pos_pausa == "CADASTRO_COMPUTADOR":
+        print("[FLUXO] Tela de Cadastro de Computador detectada. O robô irá tratar esta nova fase.")
+        return True # Retorna sucesso para o main loop reavaliar a fase imediatamente.
+
+    # Se a fase não mudou, significa que o cadastro não é necessário.
+    # Agora sim, podemos prosseguir para clicar na aba e no botão de autoatendimento.
+    print("[FLUXO] Cadastro de computador não é necessário. Prosseguindo para o autoatendimento...")
     aba_clicada = False
     for i in range(3):
         print(f"Tentativa {i+1} de clicar na Aba Cadastro...")
@@ -83,26 +102,51 @@ def tratar_fase_gerenciamento_senha():
         time.sleep(1.5)
 
     if not aba_clicada:
-        print("Erro: Não foi possível abrir a aba Cadastro.")
+        print("ERRO: Não foi possível clicar na aba Cadastro.")
         return False
 
     print("Aba clicada. Aguardando botão Autoatendimento aparecer...")
-    
     timeout = 10
     start_time = time.time()
-    
     while time.time() - start_time < timeout:
         if clicar_no_botao("botao_autoatendimento.png", confiança=0.85):
             print("Sucesso: Botão Autoatendimento clicado!")
             return True
         time.sleep(0.5)
-        
-    print("Erro: O botão Autoatendimento não apareceu a tempo.")
+
+    print("ERRO: O botão Autoatendimento não apareceu a tempo.")
     return False
 
 def tratar_fase_auto_atendimento():
     print(">>> MODO VIGILÂNCIA ATIVO: Tasy operando em Autoatendimento.")
     return True
+
+def monitorar_instabilidade_autoatendimento():
+    """
+    Verifica erros, alertas ou travamentos durante o Autoatendimento.
+    Retorna True se alguma ação corretiva foi tomada.
+    """
+    # 1. Verifica Popups de Erro (Botões para fechar)
+    botoes_alerta = ["botao_fechar_erro.png", "botao_ok_alerta.png", "botao_tentar_novamente.png"]
+    for botao in botoes_alerta:
+        # Agora busca os botões de erro na pasta do classificador
+        if clicar_no_botao(botao, confiança=0.85, subpasta="classificador"):
+            print(f"[MONITOR] Alerta detectado e tratado: {botao}")
+            time.sleep(1)
+            return True
+
+    # 2. Verifica Ícone de Carregamento Travado
+    if identificador_fase.verificar_elemento("icone_carregando.png", confiança=0.8, subpasta="classificador"):
+        print("[MONITOR] Carregamento detectado. Aguardando...")
+        time.sleep(10)
+        # Se ainda estiver lá após 10s, assumimos travamento
+        if identificador_fase.verificar_elemento("icone_carregando.png", confiança=0.8, subpasta="classificador"):
+             print("[MONITOR] Travamento detectado. Recarregando página...")
+             tratar_instabilidade_tasy()
+             return True
+             
+    return False
+
 
 def tratar_fase_login_prosseguir():
     print("Detectada sessão ativa. Clicando em OK para prosseguir...")
@@ -136,7 +180,6 @@ def tratar_fase_cadastro_computador():
         pyautogui.press('backspace')
         time.sleep(0.3)
         pyautogui.write(sequencia, interval=0.15)
-        pyautogui.press('enter')
         time.sleep(1.0)
     except Exception as e:
         print(f"[ERRO]: Falha ao tentar digitar: {e}")
