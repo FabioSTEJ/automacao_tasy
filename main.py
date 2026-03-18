@@ -46,6 +46,14 @@ def rodar_robo():
             # 2. Identificação de Estado
             fase = verificador_sistema.identificar_fase_atual()
 
+            # --- NOVO: TRATAMENTO DE TRANSIÇÃO (CARREGANDO) ---
+            # Se o Tasy estiver processando, apenas esperamos sem disparar erro.
+            if fase == "CARREGANDO":
+                print("[SISTEMA] Tasy processando (Carregamento detectado). Aguardando...")
+                time.sleep(2)
+                continue # Pula para o próximo ciclo sem alterar a 'ultima_fase'
+            # --------------------------------------------------
+
             # 3. Lógica de Ação para Novas Fases
             if fase != "DESCONHECIDO" and fase != ultima_fase:
                 print(f"--- [DETECTADO]: {fase} ---")
@@ -94,7 +102,6 @@ def rodar_robo():
                     if fase_final == "DESCONHECIDO":
                         print("[ORQUESTRADOR] ERRO PERSISTENTE: Salvando evidência de erro.")
                         acoes_tasy.salvar_print_erro()
-                        # Opcional: Você pode chamar tratar_instabilidade_tasy() aqui se quiser dar um F5 automático
                     else:
                         print(f"[ORQUESTRADOR] Recuperação detectada: '{fase_final}'.")
                 
