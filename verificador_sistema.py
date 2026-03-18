@@ -6,7 +6,12 @@ import identificador_fase
 
 URL_TASY = "https://tasy.hospitaldecirurgia.com.br/#/"
 
+# Variáveis globais para controle de log repetitivo
+_ultima_fase_logada = None
+_contador_logs = 0
+
 def tasy_esta_rodando():
+    global _ultima_fase_logada, _contador_logs
     """
     Verificação robusta:
     1. O processo msedge.exe existe?
@@ -27,6 +32,16 @@ def tasy_esta_rodando():
     # Se o identificador encontrou QUALQUER fase conhecida, significa que o Tasy está visível.
     if fase_atual != "DESCONHECIDO" and fase_atual != "ERRO_PASTA":
         print(f"[VERIFICADOR] Tasy confirmado visualmente na fase: {fase_atual}")
+        if fase_atual == _ultima_fase_logada:
+            _contador_logs += 1
+        else:
+            _ultima_fase_logada = fase_atual
+            _contador_logs = 1
+
+        if _contador_logs <= 5:
+            print(f"[VERIFICADOR] Tasy confirmado visualmente na fase: {fase_atual}")
+        elif _contador_logs == 6:
+            print("[VERIFICADOR] Sistema estável. Monitorando em silêncio...")
         return True
         
     print(f"[VERIFICADOR] Processo Edge existe, mas nenhuma tela conhecida do Tasy é visível (Fase atual: {fase_atual})")

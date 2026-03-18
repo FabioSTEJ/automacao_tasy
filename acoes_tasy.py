@@ -43,7 +43,7 @@ def tratar_fase_servidor():
         print("Erro ao selecionar o servidor de produção.")
         return False
 
-def tratar_fase_login():
+def tratar_fase_login():  # sourcery skip: extract-duplicate-method
     print("Iniciando processo de Login Blindado...")
     
     time.sleep(2) 
@@ -217,9 +217,40 @@ def tratar_instabilidade_tasy():
     time.sleep(5)
     return True
 
+def monitorar_instabilidade_autoatendimento():
+    # 1. Verifica se o ícone de carregamento está na tela
+    if identificador_fase.verificar_elemento("icone_carregando.png", confiança=0.8, subpasta="classificador"):
+        print("[MONITOR] Carregamento detectado. Iniciando cronômetro de segurança...")
+        
+        limite_espera = 40  # Tempo máximo que você considera aceitável
+        inicio_carregamento = time.time()
+        
+        while time.time() - inicio_carregamento < limite_espera:
+            # Verifica se o carregamento sumiu
+            if not identificador_fase.verificar_elemento("icone_carregando.png", confiança=0.8, subpasta="classificador"):
+                print("[MONITOR] Carregamento finalizado com sucesso dentro do tempo.")
+                return False # Tudo voltou ao normal
+            
+            time.sleep(2) # Checa a cada 2 segundos para não sobrecarregar
+            
+        # Se saiu do While, é porque bateu o limite de 40s
+        print("[ALERTA] Tempo limite de carregamento excedido! Tentando Recuperação...")
+        
+        # Tenta um ESC primeiro (Recuperação Leve)
+        pyautogui.press('esc')
+        time.sleep(3)
+        
+        # Se ainda estiver travado, vai para o Reset (Recuperação Pesada)
+        if identificador_fase.verificar_elemento("icone_carregando.png", confiança=0.8, subpasta="classificador"):
+            print("[CRÍTICO] Resetando sistema via Refresh...")
+            tratar_instabilidade_tasy()
+            return True
+            
+    return False
+
 def salvar_print_erro():
     """Tira um print da tela e salva na pasta logs_erros para análise posterior."""
-    diretorio_logs = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logs_erros")
+    diretorio_logs = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets/logs_erros")
     
     if not os.path.exists(diretorio_logs):
         os.makedirs(diretorio_logs)
