@@ -126,27 +126,41 @@ def monitorar_instabilidade_autoatendimento():
     Verifica erros, alertas ou travamentos durante o Autoatendimento.
     Retorna True se alguma ação corretiva foi tomada.
     """
-    # 1. Verifica Popups de Erro (Botões para fechar)
+    # 1. Verifica e fecha popups de erro (rápido, sem espera)
     botoes_alerta = ["botao_fechar_erro.png", "botao_ok_alerta.png", "botao_tentar_novamente.png"]
     for botao in botoes_alerta:
-        # Agora busca os botões de erro na pasta do classificador
         if clicar_no_botao(botao, confiança=0.85, subpasta="classificador"):
             print(f"[MONITOR] Alerta detectado e tratado: {botao}")
             time.sleep(1)
             return True
 
-    # 2. Verifica Ícone de Carregamento Travado
+    # 2. Verifica ícone de carregamento com cronômetro de segurança
     if identificador_fase.verificar_elemento("icone_carregando.png", confiança=0.8, subpasta="classificador"):
-        print("[MONITOR] Carregamento detectado. Aguardando...")
-        time.sleep(10)
-        # Se ainda estiver lá após 10s, assumimos travamento
-        if identificador_fase.verificar_elemento("icone_carregando.png", confiança=0.8, subpasta="classificador"):
-             print("[MONITOR] Travamento detectado. Recarregando página...")
-             tratar_instabilidade_tasy()
-             return True
-             
-    return False
+        print("[MONITOR] Carregamento detectado. Iniciando cronômetro de segurança...")
 
+        limite_espera = 40
+        inicio_carregamento = time.time()
+
+        while time.time() - inicio_carregamento < limite_espera:
+            if not identificador_fase.verificar_elemento("icone_carregando.png", confiança=0.8, subpasta="classificador"):
+                print("[MONITOR] Carregamento finalizado com sucesso dentro do tempo.")
+                return False
+
+            time.sleep(2)
+
+        print("[ALERTA] Tempo limite de carregamento excedido! Tentando recuperação...")
+
+        # Recuperação leve: ESC
+        pyautogui.press('esc')
+        time.sleep(3)
+
+        # Recuperação pesada: refresh
+        if identificador_fase.verificar_elemento("icone_carregando.png", confiança=0.8, subpasta="classificador"):
+            print("[CRÍTICO] Resetando sistema via Refresh...")
+            tratar_instabilidade_tasy()
+            return True
+
+    return False
 
 def tratar_fase_login_prosseguir():
     print("Detectada sessão ativa. Clicando em OK para prosseguir...")
@@ -157,24 +171,22 @@ def tratar_fase_login_prosseguir():
         time.sleep(1)
     print("Erro: Botão OK não foi encontrado ou clicado.")
     return False
+
 def tratar_fase_cadastro_computador():
     print("[LOG]: Iniciando validação de Cadastro do Computador...")
     
     # --- PASSO 1: O BOTÃO INICIAL ESTÁ LÁ? ---
-    # Tentamos ver se o botão de "Cadastrar" aparece.
     if clicar_no_botao("botao_cadastro_computador.png", confiança=0.8):
         print("[SUCESSO]: Passo 1 detectado e clicado. Abrindo formulário...")
-        time.sleep(1.5) # Espera o formulário abrir
+        time.sleep(1.5)
     else:
         print("[INFO]: Botão inicial não encontrado. Verificando se já estamos no Passo 2...")
 
     # --- PASSO 2: DIGITAÇÃO DA SEQUÊNCIA ---
-    # Aqui não usamos 'if not', apenas tentamos agir no campo que já deve estar aberto
     try:
         nome_pc = socket.gethostname().upper()
         sequencia = MAPA_SEQUENCIAS_TOTEM.get(nome_pc, MAPA_SEQUENCIAS_TOTEM.get("DEFAULT", "000"))
         
-        # Tentativa de focar e digitar
         print(f"[AÇÃO]: Tentando digitar sequência {sequencia} para {nome_pc}...")
         pyautogui.hotkey('ctrl', 'a')
         pyautogui.press('backspace')
@@ -187,20 +199,18 @@ def tratar_fase_cadastro_computador():
 
     print("[AÇÃO]: Verificando botões de confirmação (OK)...")
     
-    # Tenta o primeiro OK
     primeiro_ok = clicar_no_botao("botao_ok_cadastro.png", confiança=0.8)
     
     if primeiro_ok:
         print("[OK]: Primeiro OK clicado. Aguardando possível popup secundário...")
         time.sleep(1.5)
-        # Tenta o segundo OK (se houver popup de confirmação)
         clicar_no_botao("botao_ok_cadastro.png", confiança=0.8)
         print("[SUCESSO]: Processo de cadastro finalizado.")
         return True
     else:
-        # Se não achou nem o botão inicial, nem o OK, então algo deu errado
         print("[AVISO]: Nenhum botão de interação (Cadastro ou OK) foi encontrado.")
         return False
+
 def tratar_fase_funcao():
     botao_funcao = clicar_no_botao("botao_funcao.png", confiança=0.8)
 
@@ -216,37 +226,6 @@ def tratar_instabilidade_tasy():
     pyautogui.hotkey('ctrl', 'shift', 'r')
     time.sleep(5)
     return True
-
-def monitorar_instabilidade_autoatendimento():
-    # 1. Verifica se o ícone de carregamento está na tela
-    if identificador_fase.verificar_elemento("icone_carregando.png", confiança=0.8, subpasta="classificador"):
-        print("[MONITOR] Carregamento detectado. Iniciando cronômetro de segurança...")
-        
-        limite_espera = 40  # Tempo máximo que você considera aceitável
-        inicio_carregamento = time.time()
-        
-        while time.time() - inicio_carregamento < limite_espera:
-            # Verifica se o carregamento sumiu
-            if not identificador_fase.verificar_elemento("icone_carregando.png", confiança=0.8, subpasta="classificador"):
-                print("[MONITOR] Carregamento finalizado com sucesso dentro do tempo.")
-                return False # Tudo voltou ao normal
-            
-            time.sleep(2) # Checa a cada 2 segundos para não sobrecarregar
-            
-        # Se saiu do While, é porque bateu o limite de 40s
-        print("[ALERTA] Tempo limite de carregamento excedido! Tentando Recuperação...")
-        
-        # Tenta um ESC primeiro (Recuperação Leve)
-        pyautogui.press('esc')
-        time.sleep(3)
-        
-        # Se ainda estiver travado, vai para o Reset (Recuperação Pesada)
-        if identificador_fase.verificar_elemento("icone_carregando.png", confiança=0.8, subpasta="classificador"):
-            print("[CRÍTICO] Resetando sistema via Refresh...")
-            tratar_instabilidade_tasy()
-            return True
-            
-    return False
 
 def salvar_print_erro():
     """Tira um print da tela e salva na pasta logs_erros para análise posterior."""
@@ -264,4 +243,3 @@ def salvar_print_erro():
         print(f"[CÂMERA] Evidência salva em: {caminho_final}")
     except Exception as e:
         print(f"[ERRO] Falha ao capturar print: {e}")
-        #teste
