@@ -3,6 +3,7 @@ import time
 import psutil
 import pygetwindow as gw
 import identificador_fase
+from contextlib import suppress
 
 URL_TASY = "https://tasy.hospitaldecirurgia.com.br/#/"
 
@@ -62,20 +63,15 @@ def abrir_tasy_kiosk():
     time.sleep(15)
 
 def focar_janela_kiosk():
+    janelas = gw.getWindowsWithTitle("Microsoft Edge") or gw.getAllWindows() or []
 
-    try:
-        janelas = gw.getWindowsWithTitle("Microsoft Edge")
-        if not janelas:
-            janelas = gw.getAllWindows()
-            
-        for j in janelas:
+    for j in janelas:
+        with suppress(Exception):
             if "edge" in j.title.lower() or j.title == "":
                 if j.isMinimized:
                     j.restore()
                 j.activate()
                 break
-    except:
-        pass
 
 def identificar_fase_atual():
     """Wrapper para retornar a fase atual identificada."""
